@@ -40,6 +40,9 @@ namespace Grpc.IntegrationTesting
         {
             [Option("driver_port", Default = 0)]
             public int DriverPort { get; set; }
+
+            [Option("server_port", Default = 0)]
+            public int ServerPort { get; set; }
         }
 
         ServerOptions options;
