@@ -21,3 +21,6 @@ echo "TODO: Add gRPC OSS Benchmarks here..."
 echo $GOOGLE_APPLICATION_CREDENTIALS
 
 
+gcloud services enable containerregistry.googleapis.com
+
+
