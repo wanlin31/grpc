@@ -17,7 +17,7 @@ set -ex
 # Enter the gRPC repo root
 cd $(dirname $0)/../../..
 
-source tools/internal_ci/helper_scripts/prepare_build_linux_rc
-
 echo "TODO: Add gRPC OSS Benchmarks here..."
+echo $GOOGLE_APPLICATION_CREDENTIALS
+
 
