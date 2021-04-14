@@ -19,5 +19,7 @@ cd $(dirname $0)/../../..
 
 source tools/internal_ci/helper_scripts/prepare_build_linux_rc
 
+printenv
+
 echo "TODO: Add gRPC OSS Benchmarks here..."
 
