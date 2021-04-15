@@ -19,7 +19,27 @@ cd $(dirname $0)/../../..
 
 source tools/internal_ci/helper_scripts/prepare_build_linux_rc
 
-printenv
+gcloud auth configure-docker
+
+mkdir ~/grpc-test-infra && cd ~/grpc-test-infra
+git clone --recursive https://github.com/wanlin31/test-infra.git .
+git checkout feature/pre_build_images
+
+export PREBUILD_IMAGE_PREFIX="gcr.io/grpc-testing/e2etesting/pre_built_workers"
+export PREBUILT_IMAGE_TAG=$KOKORO_BUILD_INITIATOR-`date '+%F-%H-%M-%S'`
+export ROOT_DIRECTORY_OF_DOCKERFILES="containers/pre_built_workers/"
+
+go run tools/prepare_prebuilt_workers/prepare_prebuilt_workers.go \
+ -l cxx:master \
+ -p $PREBUILD_IMAGE_PREFIX \
+ -t $PREBUILT_IMAGE_TAG \
+ -r $ROOT_DIRECTORY_OF_DOCKERFILES
+
+sleep 3m
+
+go run  tools/delete_prebuilt_workers/delete_prebuilt_workers.go \
+-p $PREBUILD_IMAGE_PREFIX \
+-t $PREBUILT_IMAGE_TAG
 
 echo "TODO: Add gRPC OSS Benchmarks here..."
 
