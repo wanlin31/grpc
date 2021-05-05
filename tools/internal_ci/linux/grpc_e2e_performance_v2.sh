@@ -19,10 +19,36 @@ cd $(dirname $0)/../../..
 
 source tools/internal_ci/helper_scripts/prepare_build_linux_rc
 
+<<<<<<< HEAD
 # This is to ensure we can push and pull images from gcr.io. We do not
 # necessarily need it to run load tests, but will need it when we employ
 # pre-built images in the optimization.
 gcloud auth configure-docker
+=======
+gcloud auth configure-docker
+
+mkdir ~/grpc-test-infra && cd ~/grpc-test-infra
+git clone --recursive https://github.com/wanlin31/test-infra.git .
+git checkout feature/pre_build_images
+
+export PREBUILD_IMAGE_PREFIX="gcr.io/grpc-testing/e2etesting/pre_built_workers"
+export PREBUILT_IMAGE_TAG=$KOKORO_BUILD_INITIATOR-`date '+%F-%H-%M-%S'`
+export ROOT_DIRECTORY_OF_DOCKERFILES="containers/pre_built_workers/"
+
+go run tools/prepare_prebuilt_workers/prepare_prebuilt_workers.go \
+ -l cxx:master \
+ -p $PREBUILD_IMAGE_PREFIX \
+ -t $PREBUILT_IMAGE_TAG \
+ -r $ROOT_DIRECTORY_OF_DOCKERFILES
+
+sleep 3m
+
+go run  tools/delete_prebuilt_workers/delete_prebuilt_workers.go \
+-p $PREBUILD_IMAGE_PREFIX \
+-t $PREBUILT_IMAGE_TAG
+
+echo "TODO: Add gRPC OSS Benchmarks here..."
+>>>>>>> b4909bae1f0ded858236dab9db63c0b3f3ce3261
 
 # Connect to benchmarks-prod cluster.
 gcloud config set project grpc-testing
