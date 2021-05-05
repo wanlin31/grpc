@@ -19,36 +19,10 @@ cd $(dirname $0)/../../..
 
 source tools/internal_ci/helper_scripts/prepare_build_linux_rc
 
-<<<<<<< HEAD
 # This is to ensure we can push and pull images from gcr.io. We do not
 # necessarily need it to run load tests, but will need it when we employ
 # pre-built images in the optimization.
 gcloud auth configure-docker
-=======
-gcloud auth configure-docker
-
-mkdir ~/grpc-test-infra && cd ~/grpc-test-infra
-git clone --recursive https://github.com/wanlin31/test-infra.git .
-git checkout feature/pre_build_images
-
-export PREBUILD_IMAGE_PREFIX="gcr.io/grpc-testing/e2etesting/pre_built_workers"
-export PREBUILT_IMAGE_TAG=$KOKORO_BUILD_INITIATOR-`date '+%F-%H-%M-%S'`
-export ROOT_DIRECTORY_OF_DOCKERFILES="containers/pre_built_workers/"
-
-go run tools/prepare_prebuilt_workers/prepare_prebuilt_workers.go \
- -l cxx:master \
- -p $PREBUILD_IMAGE_PREFIX \
- -t $PREBUILT_IMAGE_TAG \
- -r $ROOT_DIRECTORY_OF_DOCKERFILES
-
-sleep 3m
-
-go run  tools/delete_prebuilt_workers/delete_prebuilt_workers.go \
--p $PREBUILD_IMAGE_PREFIX \
--t $PREBUILT_IMAGE_TAG
-
-echo "TODO: Add gRPC OSS Benchmarks here..."
->>>>>>> b4909bae1f0ded858236dab9db63c0b3f3ce3261
 
 # Connect to benchmarks-prod cluster.
 gcloud config set project grpc-testing
@@ -60,25 +34,21 @@ export PREBUILD_IMAGE_PREFIX="gcr.io/grpc-testing/e2etesting/pre_built_workers"
 export PREBUILT_IMAGE_TAG=$KOKORO_BUILD_INITIATOR-`date '+%F-%H-%M-%S'`
 export ROOT_DIRECTORY_OF_DOCKERFILES="../test-infra/containers/pre_built_workers/"
 
+cd ..
+git clone --recursive https://github.com/grpc/test-infra.git
+cd grpc
+
 # Build and push all prebuilt images for runable tests
 go run ../test-infra/tools/prepare_prebuilt_workers/prepare_prebuilt_workers.go \
  -l cxx:master \
+ -l python:master \
  -l java:master \
  -l go:master \
  -l ruby:master \
- -l python:master \
  -l csharp:master \
  -p $PREBUILD_IMAGE_PREFIX \
  -t $PREBUILT_IMAGE_TAG \
  -r $ROOT_DIRECTORY_OF_DOCKERFILES
-
-# Generate loadtest template for prebuilt images
-tools/run_tests/performance/loadtest_template.py \
-    -i ../test-infra/config/samples/*with_pre_built_workers.yaml \
-    --inject_client_pool --inject_server_pool --inject_big_query_table \
-    --inject_timeout_seconds \
-    -o ./tools/run_tests/performance/templates/loadtest_template_prebuilt_all_languages.yaml \
-    --name prebuilt_all_languages
 
 # This is subject to change. Runs a single test and does not wait for the
 # result.
@@ -87,8 +57,8 @@ tools/run_tests/performance/loadtest_config.py -l c++ -l go \
     -s client_pool=workers-8core -s server_pool=workers-8core \
     -s big_query_table=e2e_benchmarks.experimental_results \
     -s timeout_seconds=900 --prefix="kokoro-test" -u $PREBUILT_IMAGE_TAG \
-    -s prebuilt_image_prefix=$PREBUILD_IMAGE_PREFIX
-    -s prebuilt_image_tag=$PREBUILT_IMAGE_TAG
+    -s prebuilt_image_prefix=$PREBUILD_IMAGE_PREFIX \
+    -s prebuilt_image_tag=$PREBUILT_IMAGE_TAG \
     -r '(go_generic_sync_streaming_ping_pong_secure|go_protobuf_sync_unary_ping_pong_secure|cpp_protobuf_async_streaming_qps_unconstrained_secure)$' \
     -o ./loadtest_with_prebuilt_images.yaml
 
@@ -105,7 +75,7 @@ chmod +x kubectl
 sudo mv kubectl $(which kubectl)
 kubectl version --client
 
-kubectl apply -f ./loadtest.yaml
+kubectl apply -f ./loadtest_with_prebuilt_images.yaml
 
 # Delete all images built for this build 
 go run ../test-infra/tools/delete_prebuilt_workers/delete_prebuilt_workers.go \
