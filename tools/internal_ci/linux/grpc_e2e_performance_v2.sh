@@ -29,19 +29,46 @@ gcloud config set project grpc-testing
 gcloud container clusters get-credentials benchmarks-prod \
     --zone us-central1-b --project grpc-testing
 
+# Set up environment varibles
+export PREBUILD_IMAGE_PREFIX="gcr.io/grpc-testing/e2etesting/pre_built_workers"
+export PREBUILT_IMAGE_TAG=$KOKORO_BUILD_INITIATOR-`date '+%F-%H-%M-%S'`
+export ROOT_DIRECTORY_OF_DOCKERFILES="../test-infra/containers/pre_built_workers/"
+
+# Build and push all prebuilt images for runable tests
+go run ../test-infra/tools/prepare_prebuilt_workers/prepare_prebuilt_workers.go \
+ -l cxx:master \
+ -l java:master \
+ -l go:master \
+ -l ruby:master \
+ -l python:master \
+ -l csharp:master \
+ -p $PREBUILD_IMAGE_PREFIX \
+ -t $PREBUILT_IMAGE_TAG \
+ -r $ROOT_DIRECTORY_OF_DOCKERFILES
+
+# Generate loadtest template for prebuilt images
+tools/run_tests/performance/loadtest_template.py \
+    -i ../test-infra/config/samples/*with_pre_built_workers.yaml \
+    --inject_client_pool --inject_server_pool --inject_big_query_table \
+    --inject_timeout_seconds \
+    -o ./tools/run_tests/performance/templates/loadtest_template_prebuilt_all_languages.yaml \
+    --name prebuilt_all_languages
+
 # This is subject to change. Runs a single test and does not wait for the
 # result.
 tools/run_tests/performance/loadtest_config.py -l c++ -l go \
-    -t ./tools/run_tests/performance/templates/loadtest_template_basic_all_languages.yaml \
+    -t ./tools/run_tests/performance/templates/loadtest_template_prebuilt_all_languages.yaml \
     -s client_pool=workers-8core -s server_pool=workers-8core \
     -s big_query_table=e2e_benchmarks.experimental_results \
-    -s timeout_seconds=900 --prefix="kokoro-test" -u "$(date +%Y%m%d%H%M%S)" \
+    -s timeout_seconds=900 --prefix="kokoro-test" -u $PREBUILT_IMAGE_TAG \
+    -s prebuilt_image_prefix=$PREBUILD_IMAGE_PREFIX
+    -s prebuilt_image_tag=$PREBUILT_IMAGE_TAG
     -r '(go_generic_sync_streaming_ping_pong_secure|go_protobuf_sync_unary_ping_pong_secure|cpp_protobuf_async_streaming_qps_unconstrained_secure)$' \
-    -o ./loadtest.yaml
+    -o ./loadtest_with_prebuilt_images.yaml
 
 # Dump the contents of the loadtest.yaml (since loadtest_config.py doesn't
 # list the scenarios that will be run).
-cat ./loadtest.yaml
+cat ./loadtest_with_prebuilt_images.yaml
 
 # The original version of the client is a bit old, update to the latest release
 # version v1.21.0.
@@ -53,3 +80,8 @@ sudo mv kubectl $(which kubectl)
 kubectl version --client
 
 kubectl apply -f ./loadtest.yaml
+
+# Delete all images built for this build 
+go run ../test-infra/tools/delete_prebuilt_workers/delete_prebuilt_workers.go \
+ -p $PREBUILD_IMAGE_PREFIX \
+ -t $PREBUILT_IMAGE_TAG \
